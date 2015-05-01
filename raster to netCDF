@@ -64,9 +64,9 @@ rtp[1:10,1:10]
 
 # or each column can be data for a gridpoint
 # then first two rows are x and y coordinates for each point
+# could be useful to run field correaltions 
 rtpt<-data.frame(t(rasterToPoints(ay.sm)))
 rtpt[1:10,1:10]
-
 
 
 
