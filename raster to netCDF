@@ -27,7 +27,10 @@ rrm<-mask(rr,neng)
 plot(rrm);plot(neng,add=TRUE)
 
 #Build a raster stack that we can later save as a netCDF file
-setwd("E:/Transfer/PrismData/data/ tmin")
+# It assumes that you have downloaded and saved the tmin PRISM files for all months and years
+# and save them to your local drive
+
+setwd("E:/Transfer/PrismData/data/ tmin") 
 sfiles_to_read1<-list.files()
 n=1
 for (year in files_to_read1){
