@@ -1,0 +1,97 @@
+library(raster)
+library(rgdal)
+library('maptools')
+# library(rts) #for raster time series http://r-gis.net/?q=rts
+library(reshape)  # in case we want to use funtcion 'melt'
+library(ncdf)
+
+# use state bounds from gadm website:
+us <- getData("GADM", country="USA", level=1)
+
+#all raster need same projection for masking 
+projection(us) <- CRS(" +proj=longlat +datum=NAD83 +no_defs +ellps=GRS80 +towgs84=0,0,0")
+
+# extract states (need to uppercase everything)
+New.England <- c( "Vermont", "Massachusetts", "New Hampshire" ,"Connecticut",
+              "Rhode Island")
+neng = us[match(toupper(New.England),toupper(us$NAME_1)),]
+
+
+# crop to neng extent
+rr <- crop(r1, extent(neng))
+# plot, and overlay:
+plot(rr);plot(neng,add=TRUE)
+
+# plot, and overlay. Again after masking to 'exact' extent of states
+rrm<-mask(rr,neng)
+plot(rrm);plot(neng,add=TRUE)
+
+#Build a raster stack that we can later save as a netCDF file
+setwd("E:/Transfer/PrismData/data/ tmin")
+sfiles_to_read1<-list.files()
+n=1
+for (year in files_to_read1){
+  my.dir<-paste("E:/Transfer/PrismData/data/ tmin/",year,sep="")
+  setwd(my.dir)
+  my.s<-paste("s",year,sep="")
+  nn=1
+  for  (month in c(1:12)){
+  if (month<10)(month<-paste("0",month,sep=""))
+  try(file.name1<-paste("PRISM_tmin_stable_4kmM2_",year,month, "_bil.bil",sep=""))
+    
+    r1<-raster(readGDAL(paste(file.name1)))
+      if(nn==1){ss<-r1}else{ss<-stack(ss,r1)}
+      print(paste("reading",year,month))
+      nn=nn+1
+  }
+          ss1<-crop(ss,neng)
+          assign(my.s,ss1)
+          print(n)
+          if(n==1)(assign("ay.s",ss1))else(ay.s<-stack(ay.s,get(my.s)))
+          n=n+1  
+}
+
+# if we want to limit data to precise state borders (use function mask)
+# otherwise data will have the maximum extent (lat and long) of the states
+ay.sm<-mask(ay.s,neng)
+
+# if we want the raster file in data.frame format
+# we can convert it so each row is data from each grid point
+# the first two colums are x and y coordinates
+
+rtp<-data.frame(rasterToPoints(ay.sm))
+rtp[1:10,1:10]
+
+# or each column can be data for a gridpoint
+# then first two rows are x and y coordinates for each point
+rtpt<-data.frame(t(rasterToPoints(ay.sm)))
+rtpt[1:10,1:10]
+
+
+
+
+# Save the raster file as a netCDF
+outfile <- paste("TMIN","raster","NewEngland2", ".nc",sep="")
+setwd("E:/Transfer/PrismData/data/ tmin")
+writeRaster(ay.sm, outfile, overwrite=TRUE, format="CDF", varname="tmp", varunit="degC", 
+            longname="min temperature -- raster layer to netCDF", xname="lon", yname="lat")
+
+
+
+# test that I did what I thought I did
+test.nc<-open.ncdf(outfile) #read in the new file
+image(ay.sm);plot(neng,add=TRUE) #plot some maps 
+#add dots to the map for everypoint that has no NA values
+  for (lat in 1:104){
+    for( lon in 1:91){
+      z2 = get.var.ncdf(test.nc,varid="tmp",start= c(lon,lat,1), count=c(1,1,-1))
+      x2 =as.numeric( get.var.ncdf(test.nc,varid="lon",start= c(lon), count=c(1)))
+      y2 = as.numeric(get.var.ncdf(test.nc,varid="lat",start= c(lat), count=c(1)))
+      #   plot(z2)
+      if(is.na(z2[1])){
+        print("NA")}
+      else{points(x2,y2,pch=16)}
+    }
+  }
+
+
